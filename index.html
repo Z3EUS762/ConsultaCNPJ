@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta CNPJ Completa</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #e9ecef;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Centraliza ao abrir */
+            height: 100vh; /* Ocupa toda a altura da tela */
+            transition: justify-content 0.3s; /* Suaviza a transição */
+            overflow: hidden; /* Impede rolagem desnecessária */
+        }
+        h1 {
+            color: #007BFF;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 90%; /* Largura responsiva */
+            max-width: 600px;
+            margin: 0 auto; /* Centraliza o container */
+            padding: 30px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: max-width 0.3s; /* Suaviza a transição */
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #007BFF;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        input[type="text"]:focus {
+            border-color: #0056b3;
+            outline: none;
+        }
+        button {
+            padding: 12px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s, transform 0.2s;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+        #result {
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            display: none;
+            text-align: left;
+            overflow-y: auto;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            box-sizing: border-box;
+            max-height: 80vh; /* Limita a altura do resultado para ocupar mais espaço */
+        }
+        .result-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+        }
+        p {
+            margin: 5px 0;
+        }
+        .expanded {
+            justify-content: flex-start; /* Muda a posição após a busca */
+            height: auto; /* Permite que a altura se ajuste */
+        }
+        .expanded .container {
+            max-width: 100%; /* Expande a largura do container */
+            padding: 20px; /* Ajusta o padding */
+        }
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2em;
+            }
+        }
+        @media (max-width: 400px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            button {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Consulta CNPJ Completa</h1>
+    <div class="container">
+        <input type="text" id="cnpj" placeholder="Digite o CNPJ" maxlength="18">
+        <button id="consultar">Consultar</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('consultar').addEventListener('click', async () => {
+            const cnpj = document.getElementById('cnpj').value.replace(/\D/g, ''); // Remove caracteres não numéricos
+            const resultDiv = document.getElementById('result');
+
+            if (cnpj) {
+                try {
+                    const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+                    if (!response.ok) {
+                        throw new Error('CNPJ não encontrado');
+                    }
+                    const data = await response.json();
+                    
+                    // Construir um HTML para exibir todas as informações
+                    let resultHTML = '<h2>Resultado da Consulta:</h2>';
+                    
+                    for (const [key, value] of Object.entries(data)) {
+                        if (Array.isArray(value)) {
+                            // Tratamento especial para cnaes_secundarios
+                            if (key === 'cnaes_secundarios') {
+                                resultHTML += `<div class="result-item"><p><strong>${key}:</strong></p>`;
+                                value.forEach(cnae => {
+                                    resultHTML += `<p>- Código: ${cnae.codigo}, Descrição: ${cnae.descricao}</p>`;
+                                });
+                                resultHTML += '</div>';
+                            } 
+                            // Tratamento especial para qsa
+                            else if (key === 'qsa') {
+                                resultHTML += `<div class="result-item"><p><strong>${key}:</strong></p>`;
+                                value.forEach(socio => {
+                                    resultHTML += `<p>- Nome: ${socio.nome_socio}</p>`;
+                                    resultHTML += `<p>  - CPF/CNPJ: ${socio.cnpj_cpf_do_socio || 'Não informado'}</p>`;
+                                    resultHTML += `<p>  - Qualificação: ${socio.qualificacao_socio}</p>`;
+                                    resultHTML += `<p>  - Faixa Etária: ${socio.faixa_etaria || 'Não informada'}</p>`;
+                                    resultHTML += `<p>  - Data de Entrada: ${socio.data_entrada_sociedade || 'Não informada'}</p>`;
+                                });
+                                resultHTML += '</div>';
+                            } else {
+                                resultHTML += `<div class="result-item"><p><strong>${key}:</strong> ${value.map(v => v.text || v).join(', ')}</p></div>`;
+                            }
+                        } else {
+                            resultHTML += `<div class="result-item"><p><strong>${key}:</strong> ${value || 'Não disponível'}</p></div>`;
+                        }
+                    }
+
+                    resultDiv.innerHTML = resultHTML;
+                    resultDiv.style.display = 'block';
+
+                    // Muda o layout após a busca
+                    document.body.classList.add('expanded');
+                } catch (error) {
+                    resultDiv.innerHTML = `<p style="color: red;">${error.message}</p>`;
+                    resultDiv.style.display = 'block';
+                }
+            } else {
+                resultDiv.innerHTML = '<p style="color: red;">Por favor, insira um CNPJ válido.</p>';
+                resultDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
